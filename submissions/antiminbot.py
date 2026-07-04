@@ -2,12 +2,12 @@
 # and plays the cheapest card that still beats it: the smallest card in our
 # hand strictly above the opponent's estimated minimum. Edge cases: a 2 beats
 # an ace, so play a 2 if their minimum is an ace; if nothing beats their
-# minimum, dump our lowest card. Composed with a TrackedPlayer (../_tracking.py)
+# minimum, dump our lowest card. Composed with a TrackedPlayer (./_util/_tracking.py)
 # which supplies the opponent estimate and war handling.
 import sys
 from pathlib import Path
 
-_root = str(Path(__file__).resolve().parent.parent)
+_root = str(Path(__file__).resolve().parent / "_util")
 if _root not in sys.path:
     sys.path.insert(0, _root)
 

@@ -1,10 +1,10 @@
 # BestUtilityAntiLowBot (formerly utilityantilowbot): plays the card with the
 # highest expected utility, modeling the opponent as LOWBOT (play distribution
-# from ../_lowbot.py). See ../_utilitybrain.py; composed with a TrackedPlayer.
+# from ./_util/_lowbot.py). See ./_util/_utilitybrain.py; composed with a TrackedPlayer.
 import sys
 from pathlib import Path
 
-_root = str(Path(__file__).resolve().parent.parent)
+_root = str(Path(__file__).resolve().parent / "_util")
 if _root not in sys.path:
     sys.path.insert(0, _root)
 

@@ -1,13 +1,13 @@
 # LowBot: anti-(minbot/antiminbot). Samples from the play distribution in
-# ../_lowbot.py: random among the cards that beat the opponent's estimated
+# ./_util/_lowbot.py: random among the cards that beat the opponent's estimated
 # minimum, weighted towards low-ranked ones (rank taken among all cards still
-# in play). Composed with a TrackedPlayer (../_tracking.py) for the opponent
+# in play). Composed with a TrackedPlayer (./_util/_tracking.py) for the opponent
 # estimate and war handling.
 import random
 import sys
 from pathlib import Path
 
-_root = str(Path(__file__).resolve().parent.parent)
+_root = str(Path(__file__).resolve().parent / "_util")
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
