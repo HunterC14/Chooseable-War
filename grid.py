@@ -81,7 +81,8 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
     par = 100 / (len(extra) + 2)
     name_w = max(len(b) for b in bots) + 4
     cell_w = max(5, len(str(n)) + 1)
-    out = [f"Chooseable War round-robin  |  {done:,} / {total:,} games per pair (slowest pair)",
+    out = [f"Chooseable War round-robin  |  {len(extra) + 2}-player games  |  "
+           f"{done:,} / {total:,} games per pair (slowest pair)",
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
            f"(draws count fractionally). Green = above par ({par:.3g}%).",
            f"Diagonal = self-play (first seat's win rate; ~{par:.3g}% means no seat bias)."]
