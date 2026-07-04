@@ -144,28 +144,42 @@ def main():
         result = run_pair(*pair, n, args.extra)
         return result, n, monotonic() - start
 
-    while any(d < args.count for d in done.values()):
-        active = [p for p in pairs if done[p] < args.count]
-        with ThreadPoolExecutor(max_workers=cpu_count() or 4) as pool:
-            for (a, b), (result, n, elapsed) in zip(active, pool.map(run_chunk, active)):
-                pts_a, pts_b = result
-                points[(a, b)] += pts_a  # for a == b: first seat's points
-                if a != b:
-                    points[(b, a)] += pts_b
-                    games[(b, a)] += n
-                games[(a, b)] += n
-                done[(a, b)] += n
-                if args.chunk is None:
-                    # Aim for TARGET_SECS per run; growth capped at 10x per
-                    # step (1-game timings are noisy and include process
-                    # startup). If one game already exceeds the target, the
-                    # estimate stays at 1.
-                    est = round(n * TARGET_SECS / max(elapsed, 1e-3))
-                    chunk[(a, b)] = max(1, min(est, 10 * n))
-        print("\x1b[H\x1b[2J" + render(bots, args.extra, points, games,
-                                       min(done.values()), args.count),
-              flush=True)
-    print()
+    # Redraw on the alternate screen buffer (like less/vim) so scrollback
+    # isn't littered with stale copies of the table; the final table is
+    # printed once on the normal screen afterwards (also on Ctrl-C).
+    alt = sys.stdout.isatty()
+    grid = ""
+    if alt:
+        print("\x1b[?1049h", end="")
+    try:
+        while any(d < args.count for d in done.values()):
+            active = [p for p in pairs if done[p] < args.count]
+            with ThreadPoolExecutor(max_workers=cpu_count() or 4) as pool:
+                for (a, b), (result, n, elapsed) in zip(active, pool.map(run_chunk, active)):
+                    pts_a, pts_b = result
+                    points[(a, b)] += pts_a  # for a == b: first seat's points
+                    if a != b:
+                        points[(b, a)] += pts_b
+                        games[(b, a)] += n
+                    games[(a, b)] += n
+                    done[(a, b)] += n
+                    if args.chunk is None:
+                        # Aim for TARGET_SECS per run; growth capped at 10x per
+                        # step (1-game timings are noisy and include process
+                        # startup). If one game already exceeds the target, the
+                        # estimate stays at 1.
+                        est = round(n * TARGET_SECS / max(elapsed, 1e-3))
+                        chunk[(a, b)] = max(1, min(est, 10 * n))
+            grid = render(bots, args.extra, points, games,
+                          min(done.values()), args.count)
+            print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
+    finally:
+        if alt:
+            # Leave the alternate screen, then print the last table once so
+            # it survives in the normal buffer.
+            print("\x1b[?1049l", end="")
+            if grid:
+                print(grid, flush=True)
 
 
 if __name__ == "__main__":
