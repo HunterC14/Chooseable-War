@@ -7,18 +7,15 @@ Two pieces, meant to be HELD by bots rather than inherited from:
 * TrackedPlayer   - engine adapter. HAS an OpponentTracker and HAS a
   `decide` callable (the strategy); it wires set_id / set_hand /
   choose_card / war to the tracker at the right moments. A submission
-  module creates one and binds its methods at module level:
+  module exposes it directly:
 
-      _bot = TrackedPlayer(__name__, my_decide_function)
-      set_id, set_hand = _bot.set_id, _bot.set_hand
-      choose_card, war = _bot.choose_card, _bot.war
+      bot = partial(TrackedPlayer, my_decide_function)
 
   where `my_decide_function(candidates, hand, tracker) -> card` receives the
   distinct playable values (sorted), the current hand, and the tracker.
 
-The tournament engine instantiates `module.bot()` and displays bots by class
-name, so submissions build their `bot` class with `bot_class(__name__,
-decide)`: a plain class (no base) whose instances delegate to a TrackedPlayer.
+The tournament engine instantiates `module.bot()` and displays bots by module
+(file) name, so no per-bot wrapper class is needed.
 
 HOW TRACKING WORKS (assumes a 2-PLAYER game)
 ============================================
@@ -182,8 +179,7 @@ class TrackedPlayer:
     `decide(candidates, hand, tracker) -> card`. Wars discard the 3 weakest
     cards and use `decide` for the compare card."""
 
-    def __init__(self, name: str, decide):
-        self.name = name
+    def __init__(self, decide):
         self.decide = decide
         self.tracker = OpponentTracker()
         self.my_id: int | None = None
@@ -212,17 +208,3 @@ class TrackedPlayer:
         play = self.decide(sorted(set(ordered[3:])), self.hand, self.tracker)
         self.tracker.played(self.hand, play, sacrifice)
         return (play, *sacrifice)
-
-
-def bot_class(name: str, decide) -> type:
-    """Build a submission `bot` class for the tournament engine: a plain
-    class named `name` whose instances HAVE a TrackedPlayer composed with
-    `decide` and delegate the engine interface to it. The class exists only
-    so the engine sees a meaningful __class__.__name__."""
-    def __init__(self):
-        self.player = TrackedPlayer(name, decide)
-        self.set_id = self.player.set_id
-        self.set_hand = self.player.set_hand
-        self.choose_card = self.player.choose_card
-        self.war = self.player.war
-    return type(name, (), {"__init__": __init__})

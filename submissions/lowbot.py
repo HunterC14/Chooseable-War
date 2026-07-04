@@ -5,6 +5,7 @@
 # estimate and war handling.
 import random
 import sys
+from functools import partial
 from pathlib import Path
 
 _root = str(Path(__file__).resolve().parent / "_util")
@@ -12,7 +13,7 @@ if _root not in sys.path:
     sys.path.insert(0, _root)
 
 from _lowbot import lowbot_weights
-from _tracking import OpponentTracker, bot_class
+from _tracking import OpponentTracker, TrackedPlayer
 
 
 def lowbot_decide(candidates: list[int], hand: list[int], tracker: OpponentTracker) -> int:
@@ -22,4 +23,4 @@ def lowbot_decide(candidates: list[int], hand: list[int], tracker: OpponentTrack
     return random.choices(cards, weights=[weights[c] for c in cards])[0]
 
 
-bot = bot_class(__name__, lowbot_decide)
+bot = partial(TrackedPlayer, lowbot_decide)

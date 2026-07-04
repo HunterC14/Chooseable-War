@@ -5,13 +5,14 @@
 # minimum, dump our lowest card. Composed with a TrackedPlayer (./_util/_tracking.py)
 # which supplies the opponent estimate and war handling.
 import sys
+from functools import partial
 from pathlib import Path
 
 _root = str(Path(__file__).resolve().parent / "_util")
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from _tracking import OpponentTracker, bot_class
+from _tracking import OpponentTracker, TrackedPlayer
 
 
 def antimin_decide(candidates: list[int], hand: list[int], tracker: OpponentTracker) -> int:
@@ -22,4 +23,4 @@ def antimin_decide(candidates: list[int], hand: list[int], tracker: OpponentTrac
     return min(above) if above else min(candidates)
 
 
-bot = bot_class(__name__, antimin_decide)
+bot = partial(TrackedPlayer, antimin_decide)

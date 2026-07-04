@@ -65,6 +65,7 @@ else:
 #         print("No pycache to remove")
 # del rmtree
 submissions = []
+sub_names = []  # module (file) names; bots are displayed by these
 for path in playing_bots:
     print(f"Importing {path}")
     module_name = path.stem
@@ -76,6 +77,7 @@ for path in playing_bots:
     spec.loader.exec_module(module)
     bot = module.bot()
     submissions.append(bot)
+    sub_names.append(module_name)
 
 random.seed()
 sub_count = len(submissions)
@@ -178,7 +180,7 @@ def game(deal_count: int) -> dict[int, float]:
     for i in active_players:
         bot = submissions[i]
         if DEBUG:
-            print(f"{bot.__class__.__name__} is g#{i}")
+            print(f"{sub_names[i]} is g#{i}")
         hand = deck[:deal_count]
         hands.append(hand)
         bot.set_hand(copy(hand))
@@ -190,13 +192,13 @@ def game(deal_count: int) -> dict[int, float]:
         for i in active_players:
             if len(hands[i]) == 0:
                 if DEBUG:
-                    print(f"{submissions[i].__class__.__name__} eliminated from game")
+                    print(f"{sub_names[i]} eliminated from game")
                 eliminated.append(i)
         for i in eliminated:
             active_players.remove(i)
         if len(active_players) == 1:
             if DEBUG:
-                print(f"{submissions[active_players[0]].__class__.__name__} won the game.")
+                print(f"{sub_names[active_players[0]]} won the game.")
             return {active_players[0]: 1.0}
         if len(active_players) == 0:
             if DEBUG:
@@ -204,7 +206,7 @@ def game(deal_count: int) -> dict[int, float]:
             return {i: 1/len(eliminated) for i in eliminated}
         for i in active_players:
             bot = submissions[i]
-            name = bot.__class__.__name__
+            name = sub_names[i]
             card = bot.choose_card()
             assert isinstance(card, int), f"{name} g#{i} didn't submit an int"
             assert card in hands[i], f"{name} g#{i} didn't submitted a card that they don't have"
@@ -218,11 +220,11 @@ def game(deal_count: int) -> dict[int, float]:
 assert __name__ == "__main__"
 
 for i, bot in enumerate(submissions):
-    print(f"{bot.__class__.__name__} is t#{i}")
+    print(f"{sub_names[i]} is t#{i}")
 
 def overview_print():
     for tid, score in points.items():
-        name = submissions[tid].__class__.__name__
+        name = sub_names[tid]
         print(f"{name} t#{tid} has {score:,.3f} points ({score/(round_num+1)*100:.2f}%)", file=stderr)
 
 points: dict[int, float] = {i: 0.0 for i in range(sub_count)}
