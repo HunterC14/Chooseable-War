@@ -168,4 +168,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\ninterrupted — grid above shows progress so far", file=sys.stderr)
+        sys.exit(130)
