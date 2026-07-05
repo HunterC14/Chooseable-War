@@ -35,15 +35,14 @@ round_count = args.count
 playing_bots = args.bots
 show_progress = args.progress
 if playing_bots == []:
-    api.import_bots()
+    players = api.import_bots()
 else:
-    api.import_bots(playing_bots)
-submissions = api.submissions
-sub_count = len(submissions)
+    players = api.import_bots(playing_bots)
+sub_count = len(players)
 
 def overview_print():
     for tid, score in points.items():
-        name = submissions[tid].name
+        name = players[tid].name
         print(f"{name} t#{tid} has {score:,.3f} points ({score/(round_num+1)*100:.2f}%)", file=stderr)
 
 points: dict[int, float] = {i: 0.0 for i in range(sub_count)}
@@ -58,17 +57,17 @@ try:
         if DEBUG:
             print(f"Initiating r#{round_num} (0-indexed)")
         round_start = time()
-        scores = api.game(13 * 4 // sub_count, list(range(sub_count)), verbose=DEBUG)
+        scores = api.game(13 * 4 // sub_count, players, verbose=DEBUG)
         round_time += time()-round_start
         if DEBUG:
             print()
         for gid, incscore in scores.items():
             points[gid] += incscore
         if show_progress:
-            if time() - last_shown > 0.01:
+            if time() - last_shown > 0.03:
                 last_shown = time()
                 print("\x1b[A"*(sub_count+1),end="",file=stderr)
-                print(f"Working round: {round_num+1}", file=stderr)
+                print(f"Working game: {round_num+1}", file=stderr)
                 overview_print()
                     
 except KeyboardInterrupt:
@@ -81,4 +80,6 @@ print(f"{rounds_done:,}/{round_count:,} rounds", file=stderr)
 overview_print()
 print(f"Avg. game time: {round_time/rounds_done*1_000_000:.2f} \u03bcs", file=stderr)
 print(f"Total elapsed time: {total_time:,.2f} sec", file=stderr)
-print(f"Avg. time per round: {total_time/rounds_done*1_000_000:.2f} \u03bcs", file=stderr)
+print(f"Avg. time per game: {total_time/rounds_done*1_000_000:.2f} \u03bcs", file=stderr)
+for tid, player in enumerate(players):
+    print(f"{player.name} t#{tid} took {player.elapsed_time:,.2f} seconds (elapsed) and {player.elapsed_time/rounds_done*1000:,.1f} ms/game")

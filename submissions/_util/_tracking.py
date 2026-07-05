@@ -185,7 +185,7 @@ class TrackedPlayer:
         self.my_id: int | None = None
         self.hand: list[int] = []
 
-    def set_id(self, id: int):
+    def start_game(self, id: int):
         self.my_id = id
         self.hand = []
         self.tracker.reset()  # set_id marks the start of a new game
