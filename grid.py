@@ -12,7 +12,7 @@ size can be forced with --chunk).
 LEGEND: each cell is the percentage of games the ROW bot wins against the
 COLUMN bot (draws count fractionally). Green = above par, red = below, where
 par is an equal share (50% for plain pairs, 100/players with extras). The
-right column is the bot's average thinking time per game in ms.
+right column is the bot's speed in games per second of its own thinking time.
 
 Extra bots (--extra) join every game without appearing in the grid: with
 extras minbot & randobot and grid bots maxbot tophalfbot lowbot, the runs are
@@ -124,20 +124,22 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
            f"(draws count fractionally). Green = above par ({par:.3g}%).",
            f"Diagonal = self-play (first seat's win rate; ~{par:.3g}% means no seat bias). "
-           "Right column = bot's avg time per game (ms)."]
+           "Right column = games/s (by the bot's own thinking time)."]
     if extra:
         out.append(f"Extra bots in every game (not shown): {', '.join(extra)}. "
                    "Grid is not symmetric: extras also win games.")
     out.append("")
-    ms = {b: (f"{round(secs[b] / seat_games[b] * 1000)}" if seat_games[b] else "?")
-          for b in bots}
-    ms_w = max(len("ms/game"), *(len(v) for v in ms.values())) + 2
-    header = (" " * (4 + 2 + name_w)  # label + ". " + name field
+    gps = {b: (f"{round(seat_games[b] / secs[b]):,}" if secs[b] > 0 else "?")
+           for b in bots}
+    gps_w = max(len("games/s"), *(len(v) for v in gps.values())) + 2
+    # The leading space keeps colored labels out of column 1: terminals like
+    # iTerm2 bleed an edge cell's background into the window's left margin.
+    header = (" " * (1 + 4 + 2 + name_w)  # margin + label + ". " + name field
               + "".join(" " * (cell_w - 4) + label(i) for i in range(n))
-              + f"{'ms/game':>{ms_w}}")
+              + f"{'games/s':>{gps_w}}")
     out.append(header)
     for i, row in enumerate(bots):
-        line = f"{label(i)}. {row:<{name_w}}"
+        line = f" {label(i)}. {row:<{name_w}}"
         for j, col in enumerate(bots):
             g = games[(row, col)]
             if g == 0:
@@ -147,7 +149,7 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
             cell = f"{round(pct):>{cell_w - 1}}%"
             line += f"\x1b[38;5;{heat_color(pct, par)}m{cell}\x1b[0m"
         # Repeat the colored label on the right-hand side for easy matching.
-        out.append(line + f"{ms[row]:>{ms_w}}  " + label(i))
+        out.append(line + f"{gps[row]:>{gps_w}}  " + label(i))
     return "\n".join(out)
 
 
@@ -186,7 +188,7 @@ def main():
     chunk = dict.fromkeys(pairs, args.chunk or 1)
     done = dict.fromkeys(pairs, 0)
     # Per-bot elapsed thinking time and seat-games played (self-play counts
-    # both seats), for the ms/game column.
+    # both seats), for the games/s column.
     secs = dict.fromkeys(bots, 0.0)
     seat_games = dict.fromkeys(bots, 0)
 
@@ -196,7 +198,7 @@ def main():
     alt = sys.stdout.isatty()
     grid = ""
     if alt:
-        print("\x1b[?1049h", end="")
+        print("\x1b[?1049h\x1b[?25l", end="")  # enter alt screen, hide cursor
     try:
         with ProcessPoolExecutor(max_workers=cpu_count() or 4) as pool:
             while any(d < args.count for d in done.values()):
@@ -227,9 +229,9 @@ def main():
                 print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
     finally:
         if alt:
-            # Leave the alternate screen, then print the last table once so
-            # it survives in the normal buffer.
-            print("\x1b[?1049l", end="")
+            # Show the cursor and leave the alternate screen, then print the
+            # last table once so it survives in the normal buffer.
+            print("\x1b[?25h\x1b[?1049l", end="")
             if grid:
                 print(grid, flush=True)
 
