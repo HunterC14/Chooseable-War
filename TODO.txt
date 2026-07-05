@@ -1,0 +1,10 @@
+
+Allow variants: 2-14 with ties for suits; 1-52 no ties
+
+Make tournament.py measure and output per-bot (not bot-pair) timing.  Make grid.py show this per bot.
+
+Tournament.py should exit early if only 1 bot specified/found
+
+Make bots that pick between other strategies
+- E.g. pick between minbot and antiminbot.  Either random mixed game or try to
+infer opponent's strategy
