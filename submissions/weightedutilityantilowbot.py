@@ -1,5 +1,5 @@
 # WeightedUtilityAntiLowBot: picks logistically-weighted random by expected
-# utility, modeling the opponent as LOWBOT (play distribution from
+# utility, modeling the opponent as LINEARLOWBOT (play distribution from
 # ./_util/_lowbot.py). See ./_util/_utilitybrain.py; composed with a TrackedPlayer.
 import sys
 from functools import partial

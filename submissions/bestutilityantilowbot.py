@@ -1,5 +1,5 @@
 # BestUtilityAntiLowBot (formerly utilityantilowbot): plays the card with the
-# highest expected utility, modeling the opponent as LOWBOT (play distribution
+# highest expected utility, modeling the opponent as LINEARLOWBOT (play distribution
 # from ./_util/_lowbot.py). See ./_util/_utilitybrain.py; composed with a TrackedPlayer.
 import sys
 from functools import partial
