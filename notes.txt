@@ -1,0 +1,17 @@
+
+Randobot is first thing to beat.
+
+Minbot destroys randobot, beating it 80%.  It also beats a lot of other
+more sophisticated bots.
+
+Antiminbot destroys minbot, beating it 100%.
+
+Marginlowbot wins 69% against antiminbot and is >50% against all bots.
+It's unexploitable.
+
+
+TODO: make a dynamic exploiter bot that figures out who it's playing against
+and pick the bot that best exploits that.
+If it detects a dynamic bot then become the least-exploitable bot (currently
+marginlowbot).
+
