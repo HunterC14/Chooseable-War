@@ -115,12 +115,14 @@ def heat_color(pct: float, par: float = 50) -> int:
 def render(bots: list[str], extra: list[str], high: dict[str, float],
            points: dict[tuple[str, str], float],
            games: dict[tuple[str, str], int], secs: dict[str, float],
-           seat_games: dict[str, int], done: int, total: int) -> str:
+           seat_games: dict[str, int], done: int, total: int,
+           workers: int) -> str:
     n = len(bots)
     par = 100 / (len(extra) + 2)
     name_w = max(len(b) for b in bots) + 1  # name field, incl. trailing space
     cell_w = max(5, len(str(n)) + 2)  # two blanks between typical "NN%" cells
     out = [f"Chooseable War round-robin  |  {len(extra) + 2}-player games  |  "
+           f"{workers} of {cpu_count()} cpu cores  |  "
            f"{done:,} / {total:,} games per pair (slowest pair)",
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
            f"(draws count fractionally). Green = above par ({par:.3g}%).",
@@ -207,10 +209,12 @@ def main():
     grid = ""
     if alt:
         print("\x1b[?1049h\x1b[?25l", end="")  # enter alt screen, hide cursor
+    max_workers = cpu_count() or 4
     try:
-        with ProcessPoolExecutor(max_workers=cpu_count() or 4) as pool:
+        with ProcessPoolExecutor(max_workers=max_workers) as pool:
             while any(d < args.count for d in done.values()):
                 active = [p for p in pairs if done[p] < args.count]
+                workers = min(max_workers, len(active))
                 ns = [min(chunk[p], args.count - done[p]) for p in active]
                 seat_tuples = [(*args.extra, a, b) for a, b in active]
                 for (a, b), n, result in zip(active, ns,
@@ -233,7 +237,8 @@ def main():
                         est = round(n * TARGET_SECS / max(elapsed, 1e-3))
                         chunk[(a, b)] = max(1, min(est, 10 * n))
                 grid = render(bots, args.extra, high, points, games, secs,
-                              seat_games, min(done.values()), args.count)
+                              seat_games, min(done.values()), args.count,
+                              workers)
                 print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
     finally:
         if alt:
