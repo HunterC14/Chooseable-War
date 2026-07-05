@@ -88,6 +88,21 @@ def run_games(seats: tuple[str, ...], n: int) -> tuple[float, float, float, floa
             monotonic() - start)
 
 
+# Row/column index labels get cycling background colors so matching a row to
+# its column is easy. Hues deliberately avoid the heatmap's red/orange/
+# yellow/green: blue, cyan, purple, magenta, gray. (bg, fg) pairs; fg is
+# black on light backgrounds, white on dark ones.
+LABEL_COLORS = [(27, 231), (51, 16), (129, 231), (201, 16), (245, 16)]
+
+
+def label(i: int) -> str:
+    """Index i as a 1-based label: a 4-character-wide block with the cycling
+    background color, number right-aligned with one trailing space
+    ('  1 ', ' 12 ')."""
+    bg, fg = LABEL_COLORS[i % len(LABEL_COLORS)]
+    return f"\x1b[48;5;{bg};38;5;{fg}m{i + 1:>3} \x1b[0m"
+
+
 def heat_color(pct: float, par: float = 50) -> int:
     """ANSI 256-color heatmap: 0% red -> par yellow -> 100% green."""
     if pct <= par:
@@ -102,8 +117,8 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
            seat_games: dict[str, int], done: int, total: int) -> str:
     n = len(bots)
     par = 100 / (len(extra) + 2)
-    name_w = max(len(b) for b in bots) + 4
-    cell_w = max(5, len(str(n)) + 1)
+    name_w = max(len(b) for b in bots) + 1  # name field, incl. trailing space
+    cell_w = max(5, len(str(n)) + 4)
     out = [f"Chooseable War round-robin  |  {len(extra) + 2}-player games  |  "
            f"{done:,} / {total:,} games per pair (slowest pair)",
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
@@ -117,11 +132,12 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
     ms = {b: (f"{round(secs[b] / seat_games[b] * 1000)}" if seat_games[b] else "?")
           for b in bots}
     ms_w = max(len("ms/game"), *(len(v) for v in ms.values())) + 2
-    header = (" " * name_w + "".join(f"{i + 1:>{cell_w}}" for i in range(n))
+    header = (" " * (4 + 2 + name_w)  # label + ". " + name field
+              + "".join(" " * (cell_w - 4) + label(i) for i in range(n))
               + f"{'ms/game':>{ms_w}}")
     out.append(header)
     for i, row in enumerate(bots):
-        line = f"{i + 1:>2}. {row:<{name_w - 4}}"
+        line = f"{label(i)}. {row:<{name_w}}"
         for j, col in enumerate(bots):
             g = games[(row, col)]
             if g == 0:
@@ -130,7 +146,8 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
             pct = points[(row, col)] / g * 100
             cell = f"{round(pct):>{cell_w - 1}}%"
             line += f"\x1b[38;5;{heat_color(pct, par)}m{cell}\x1b[0m"
-        out.append(line + f"{ms[row]:>{ms_w}}")
+        # Repeat the colored label on the right-hand side for easy matching.
+        out.append(line + f"{ms[row]:>{ms_w}}  " + label(i))
     return "\n".join(out)
 
 
