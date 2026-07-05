@@ -112,7 +112,8 @@ def heat_color(pct: float, par: float = 50) -> int:
     return 16 + 36 * r + 6 * g
 
 
-def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], float],
+def render(bots: list[str], extra: list[str], high: dict[str, float],
+           points: dict[tuple[str, str], float],
            games: dict[tuple[str, str], int], secs: dict[str, float],
            seat_games: dict[str, int], done: int, total: int) -> str:
     n = len(bots)
@@ -124,7 +125,11 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
            f"(draws count fractionally). Green = above par ({par:.3g}%).",
            f"Diagonal = self-play (first seat's win rate; ~{par:.3g}% means no seat bias). "
-           "Right column = games/s (by the bot's own thinking time)."]
+           "Right column = games/s (by the bot's own thinking time).",
+           "The % before each name = the bot's highness (measured propensity to "
+           "play high: 0% = always lowest",
+           "card, 100% = always highest; from highness.py). Rows/columns are "
+           "sorted by it."]
     if extra:
         out.append(f"Extra bots in every game (not shown): {', '.join(extra)}. "
                    "Grid is not symmetric: extras also win games.")
@@ -132,14 +137,16 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
     gps = {b: (f"{round(seat_games[b] / secs[b]):,}" if secs[b] > 0 else "?")
            for b in bots}
     gps_w = max(len("games/s"), *(len(v) for v in gps.values())) + 2
+    hi = {b: (f"{round(high[b] * 100):>3}%" if high[b] != float("inf") else "  ?%")
+          for b in bots}
     # The leading space keeps colored labels out of column 1: terminals like
     # iTerm2 bleed an edge cell's background into the window's left margin.
-    header = (" " * (1 + 4 + 2 + name_w)  # margin + label + ". " + name field
+    header = (" " * (1 + 4 + 2 + 5 + name_w)  # margin + label + ". " + highness + name
               + "".join(" " * (cell_w - 4) + label(i) for i in range(n))
               + f"{'games/s':>{gps_w}}")
     out.append(header)
     for i, row in enumerate(bots):
-        line = f" {label(i)}. {row:<{name_w}}"
+        line = f" {label(i)}. {hi[row]} {row:<{name_w}}"
         for j, col in enumerate(bots):
             g = games[(row, col)]
             if g == 0:
@@ -178,7 +185,8 @@ def main():
         sys.exit("need at least 2 grid bots")
     # Order rows/columns by propensity to play high (minbot first, maxbot
     # last); bots without a highness comment sort last, ties break by name.
-    bots = sorted(bots, key=lambda b: (highness(b), b))
+    high = {b: highness(b) for b in bots}
+    bots = sorted(bots, key=lambda b: (high[b], b))
 
     pairs = list(combinations_with_replacement(bots, 2))  # includes self-play
     points = {(a, b): 0.0 for a, b in pairs} | {(b, a): 0.0 for a, b in pairs}
@@ -224,8 +232,8 @@ def main():
                         # per pair per worker includes bot import).
                         est = round(n * TARGET_SECS / max(elapsed, 1e-3))
                         chunk[(a, b)] = max(1, min(est, 10 * n))
-                grid = render(bots, args.extra, points, games, secs, seat_games,
-                              min(done.values()), args.count)
+                grid = render(bots, args.extra, high, points, games, secs,
+                              seat_games, min(done.values()), args.count)
                 print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
     finally:
         if alt:
