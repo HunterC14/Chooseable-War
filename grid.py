@@ -118,7 +118,7 @@ def render(bots: list[str], extra: list[str], points: dict[tuple[str, str], floa
     n = len(bots)
     par = 100 / (len(extra) + 2)
     name_w = max(len(b) for b in bots) + 1  # name field, incl. trailing space
-    cell_w = max(5, len(str(n)) + 4)
+    cell_w = max(5, len(str(n)) + 2)  # two blanks between typical "NN%" cells
     out = [f"Chooseable War round-robin  |  {len(extra) + 2}-player games  |  "
            f"{done:,} / {total:,} games per pair (slowest pair)",
            "Legend: cell = ROW bot's win % in games against the COLUMN bot "
