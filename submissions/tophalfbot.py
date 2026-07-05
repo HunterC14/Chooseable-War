@@ -7,7 +7,7 @@ class tophalfbot:
         self.hand: list[int] = []
         self.my_id = None
 
-    def set_id(self, id: int):
+    def start_game(self, id: int):
         self.my_id = id # the id which this bot is referenced as in the cards dict
 
     def set_hand(self, toset: list[int]):

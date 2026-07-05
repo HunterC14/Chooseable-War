@@ -5,7 +5,7 @@ Two pieces, meant to be HELD by bots rather than inherited from:
 * OpponentTracker - pure state machine estimating the opponent's hand.
   Knows nothing about strategies or the engine interface.
 * TrackedPlayer   - engine adapter. HAS an OpponentTracker and HAS a
-  `decide` callable (the strategy); it wires set_id / set_hand /
+  `decide` callable (the strategy); it wires start_game / set_hand /
   choose_card / war to the tracker at the right moments. A submission
   module exposes it directly:
 
@@ -188,7 +188,7 @@ class TrackedPlayer:
     def start_game(self, id: int):
         self.my_id = id
         self.hand = []
-        self.tracker.reset()  # set_id marks the start of a new game
+        self.tracker.reset()  # start_game marks the start of a new game
 
     def set_hand(self, toset: list[int]):
         self.hand = list(toset)  # copy: the engine mutates its lists in place

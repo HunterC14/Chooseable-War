@@ -6,7 +6,7 @@ class example:
 
     # 2-14, 2-10 + JQKA
 
-    def set_id(self, id: int):
+    def start_game(self, id: int):
         self.my_id = id # the id which this submission is referenced as in the cards dict
         # print(f"{__name__} g#{my_id}")
 
