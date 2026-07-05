@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Round-robin grid runner for Chooseable War bots.
 
-Runs every pair of bots head-to-head via tournament.py in chunks, redrawing
-an ANSI-colored win-rate grid after each pass until the total count per pair
-is reached. Chunk size is dynamic by default: each pair starts with a single
-game and the chunk is recalibrated after every run to target ~150ms per run,
-so fast pairs batch thousands of games while slow ones update every game or
-two (a fixed size can be forced with --chunk).
+Runs every pair of bots head-to-head via tournament_api (in-process, spread
+over a pool of worker processes) in chunks, redrawing an ANSI-colored
+win-rate grid after each pass until the total count per pair is reached.
+Chunk size is dynamic by default: each pair starts with a single game and the
+chunk is recalibrated after every run to target ~150ms per run, so fast pairs
+batch thousands of games while slow ones update every game or two (a fixed
+size can be forced with --chunk).
 
 LEGEND: each cell is the percentage of games the ROW bot wins against the
 COLUMN bot (draws count fractionally). Green = above par, red = below, where
-par is an equal share (50% for plain pairs, 100/players with extras).
+par is an equal share (50% for plain pairs, 100/players with extras). The
+right column is the bot's average thinking time per game in ms.
 
 Extra bots (--extra) join every game without appearing in the grid: with
 extras minbot & randobot and grid bots maxbot tophalfbot lowbot, the runs are
@@ -18,6 +20,9 @@ extras minbot & randobot and grid bots maxbot tophalfbot lowbot, the runs are
 (minbot randobot tophalfbot lowbot). With more than 2 bots per game the grid
 is no longer symmetric: cells (a, b) and (b, a) need not sum to 100% since
 extras also win games.
+
+Rows/columns are ordered by each bot's measured propensity to play high (the
+'# highness:' comment maintained by highness.py), minbot first, maxbot last.
 
 Usage:
   python3 grid.py                       # all bots, 10,000 games per pair
@@ -28,21 +33,18 @@ Usage:
 """
 
 import re
-import subprocess
 import sys
 from argparse import ArgumentParser
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from itertools import combinations_with_replacement
 from os import cpu_count
 from pathlib import Path
 from time import monotonic
 
+import tournament_api as api
+
 HERE = Path(__file__).parent
 TARGET_SECS = 0.150  # dynamic chunk sizing aims for one run per pair in ~150ms
-TOURNAMENT = HERE / "tournament.py"
-# Parse by t#id, not name: in self-play both entries share the bot's name.
-RESULT_RE = re.compile(r"^\S+ t#(\d+) has ([\d,.]+) points", re.MULTILINE)
-TIME_RE = re.compile(r"^\S+ t#(\d+) took ([\d,.]+) seconds", re.MULTILINE)
 # Standardized comment written by highness.py into each bot file.
 HIGHNESS_RE = re.compile(r"^#\s*highness:\s*([0-9.]+)", re.MULTILINE)
 
@@ -60,23 +62,30 @@ def highness(bot: str) -> float:
     return float(m.group(1)) if m else float("inf")
 
 
-def run_pair(a: str, b: str, count: int, extra: list[str]) -> tuple[float, float, float, float]:
-    """Run `count` games of a vs b (possibly a == b) with the extra bots also
-    seated; return the points and elapsed bot-seconds of a and b (seats
-    len(extra) and len(extra)+1, matching the -b argument order)."""
-    e = len(extra)
-    proc = subprocess.run(
-        [sys.executable, str(TOURNAMENT), "-c", str(count), "-b", *extra, a, b],
-        capture_output=True, text=True, cwd=HERE)
-    out = proc.stdout + proc.stderr
-    found = {int(m.group(1)): float(m.group(2).replace(",", ""))
-             for m in RESULT_RE.finditer(out)}
-    if not {e, e + 1} <= set(found):
-        sys.exit(f"unexpected output for {a} vs {b} (exit {proc.returncode}):\n"
-                 f"{proc.stdout}{proc.stderr}")
-    times = {int(m.group(1)): float(m.group(2).replace(",", ""))
-             for m in TIME_RE.finditer(out)}
-    return found[e], found[e + 1], times.get(e, 0.0), times.get(e + 1, 0.0)
+# Per worker process: seat-name tuple -> persistent Player instances, so bots
+# are imported once per pair per process rather than once per chunk.
+_players_cache: dict[tuple[str, ...], list] = {}
+
+
+def run_games(seats: tuple[str, ...], n: int) -> tuple[float, float, float, float, float]:
+    """Run `n` games between `seats` = (extras..., a, b) (possibly a == b) in
+    this worker process; return the points and elapsed bot-seconds of a and b
+    (seats -2 and -1), plus the wall-clock seconds for the whole run."""
+    start = monotonic()
+    players = _players_cache.get(seats)
+    if players is None:
+        players = _players_cache[seats] = api.import_bots(list(seats))
+    e = len(seats) - 2
+    pa, pb = players[e], players[e + 1]
+    pts_a = pts_b = 0.0
+    sec_a, sec_b = pa.elapsed_time, pb.elapsed_time
+    deal = 13 * 4 // len(players)
+    for _ in range(n):
+        scores = api.game(deal, players)
+        pts_a += scores.get(e, 0.0)
+        pts_b += scores.get(e + 1, 0.0)
+    return (pts_a, pts_b, pa.elapsed_time - sec_a, pb.elapsed_time - sec_b,
+            monotonic() - start)
 
 
 def heat_color(pct: float, par: float = 50) -> int:
@@ -164,12 +173,6 @@ def main():
     secs = dict.fromkeys(bots, 0.0)
     seat_games = dict.fromkeys(bots, 0)
 
-    def run_chunk(pair):
-        n = min(chunk[pair], args.count - done[pair])
-        start = monotonic()
-        result = run_pair(*pair, n, args.extra)
-        return result, n, monotonic() - start
-
     # Redraw on the alternate screen buffer (like less/vim) so scrollback
     # isn't littered with stale copies of the table; the final table is
     # printed once on the normal screen afterwards (also on Ctrl-C).
@@ -178,11 +181,14 @@ def main():
     if alt:
         print("\x1b[?1049h", end="")
     try:
-        while any(d < args.count for d in done.values()):
-            active = [p for p in pairs if done[p] < args.count]
-            with ThreadPoolExecutor(max_workers=cpu_count() or 4) as pool:
-                for (a, b), (result, n, elapsed) in zip(active, pool.map(run_chunk, active)):
-                    pts_a, pts_b, sec_a, sec_b = result
+        with ProcessPoolExecutor(max_workers=cpu_count() or 4) as pool:
+            while any(d < args.count for d in done.values()):
+                active = [p for p in pairs if done[p] < args.count]
+                ns = [min(chunk[p], args.count - done[p]) for p in active]
+                seat_tuples = [(*args.extra, a, b) for a, b in active]
+                for (a, b), n, result in zip(active, ns,
+                                             pool.map(run_games, seat_tuples, ns)):
+                    pts_a, pts_b, sec_a, sec_b, elapsed = result
                     points[(a, b)] += pts_a  # for a == b: first seat's points
                     if a != b:
                         points[(b, a)] += pts_b
@@ -194,15 +200,14 @@ def main():
                     seat_games[a] += n
                     seat_games[b] += n
                     if args.chunk is None:
-                        # Aim for TARGET_SECS per run; growth capped at 10x per
-                        # step (1-game timings are noisy and include process
-                        # startup). If one game already exceeds the target, the
-                        # estimate stays at 1.
+                        # Aim for TARGET_SECS per run; growth capped at 10x
+                        # per step (1-game timings are noisy and the first run
+                        # per pair per worker includes bot import).
                         est = round(n * TARGET_SECS / max(elapsed, 1e-3))
                         chunk[(a, b)] = max(1, min(est, 10 * n))
-            grid = render(bots, args.extra, points, games, secs, seat_games,
-                          min(done.values()), args.count)
-            print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
+                grid = render(bots, args.extra, points, games, secs, seat_games,
+                              min(done.values()), args.count)
+                print(("\x1b[H\x1b[2J" if alt else "") + grid, flush=True)
     finally:
         if alt:
             # Leave the alternate screen, then print the last table once so
