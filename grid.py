@@ -128,10 +128,7 @@ def render(bots: list[str], extra: list[str], high: dict[str, float],
            f"(draws count fractionally). Green = above par ({par:.3g}%).",
            f"Diagonal = self-play (first seat's win rate; ~{par:.3g}% means no seat bias). "
            "Right column = games/s (by the bot's own thinking time).",
-           "H% = the bot's highness (measured propensity to play high: 0% = "
-           "always lowest card,",
-           "100% = always highest; from highness.py). Rows/columns are "
-           "sorted by it."]
+           "H% = the bot's highness (empirical propensity to play high)"]
     if extra:
         out.append(f"Extra bots in every game (not shown): {', '.join(extra)}. "
                    "Grid is not symmetric: extras also win games.")
