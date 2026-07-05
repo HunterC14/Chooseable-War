@@ -25,3 +25,4 @@ class randobot:
                                  # feed the bounty without affecting the outcome
 
 bot = randobot
+# highness: 0.494

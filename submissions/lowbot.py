@@ -24,3 +24,4 @@ def lowbot_decide(candidates: list[int], hand: list[int], tracker: OpponentTrack
 
 
 bot = partial(TrackedPlayer, lowbot_decide)
+# highness: 0.474

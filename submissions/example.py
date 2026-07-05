@@ -32,3 +32,4 @@ class example:
                             # always sacrifice the 3 lowest remaining cards.
 
 bot=example
+# highness: 0.493

@@ -14,3 +14,4 @@ from _tracking import TrackedPlayer
 from _utilitybrain import make_utility_decide, pick_max
 
 bot = partial(TrackedPlayer, make_utility_decide(pick_max, lowbot_opp_model))
+# highness: 0.323

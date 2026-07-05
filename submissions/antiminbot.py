@@ -24,3 +24,4 @@ def antimin_decide(candidates: list[int], hand: list[int], tracker: OpponentTrac
 
 
 bot = partial(TrackedPlayer, antimin_decide)
+# highness: 0.310

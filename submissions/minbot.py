@@ -19,3 +19,4 @@ class minbot:
         return (ordered[0], *ordered[-3:]) # play biggest, discard the 3 weakest cards
 
 bot = minbot
+# highness: 0.000

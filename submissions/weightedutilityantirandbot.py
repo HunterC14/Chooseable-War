@@ -14,3 +14,4 @@ from _tracking import TrackedPlayer
 from _utilitybrain import make_utility_decide, pick_logistic
 
 bot = partial(TrackedPlayer, make_utility_decide(pick_logistic))
+# highness: 0.432

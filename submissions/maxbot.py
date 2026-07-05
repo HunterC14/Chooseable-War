@@ -19,3 +19,4 @@ class maxbot:
         return (ordered[0], *ordered[-3:]) # play biggest, discard the 3 weakest cards
 
 bot = maxbot
+# highness: 1.000

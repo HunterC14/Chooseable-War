@@ -27,3 +27,4 @@ class tophalfbot:
         return (play, *rest[:3]) # play from top half, discard the 3 weakest cards
 
 bot = tophalfbot
+# highness: 0.788

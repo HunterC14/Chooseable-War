@@ -42,12 +42,21 @@ TARGET_SECS = 0.150  # dynamic chunk sizing aims for one run per pair in ~150ms
 TOURNAMENT = HERE / "tournament.py"
 # Parse by t#id, not name: in self-play both entries share the bot's name.
 RESULT_RE = re.compile(r"^\S+ t#(\d+) has ([\d,.]+) points", re.MULTILINE)
+# Standardized comment written by highness.py into each bot file.
+HIGHNESS_RE = re.compile(r"^#\s*highness:\s*([0-9.]+)", re.MULTILINE)
 
 
 def available_bots() -> list[str]:
     subs = HERE / "submissions"
     return sorted(p.stem for p in subs.iterdir()
                   if p.suffix == ".py" and p.name[0].isalnum())
+
+
+def highness(bot: str) -> float:
+    """The bot's measured propensity to play high (0.0 lowest .. 1.0 highest),
+    from the '# highness:' comment maintained by highness.py; inf if absent."""
+    m = HIGHNESS_RE.search((HERE / "submissions" / f"{bot}.py").read_text())
+    return float(m.group(1)) if m else float("inf")
 
 
 def run_pair(a: str, b: str, count: int, extra: list[str]) -> tuple[float, float]:
@@ -129,6 +138,9 @@ def main():
         sys.exit(f"unknown bot(s): {', '.join(unknown)}\navailable: {', '.join(all_bots)}")
     if len(bots) < 2:
         sys.exit("need at least 2 grid bots")
+    # Order rows/columns by propensity to play high (minbot first, maxbot
+    # last); bots without a highness comment sort last, ties break by name.
+    bots = sorted(bots, key=lambda b: (highness(b), b))
 
     pairs = list(combinations_with_replacement(bots, 2))  # includes self-play
     points = {(a, b): 0.0 for a, b in pairs} | {(b, a): 0.0 for a, b in pairs}
